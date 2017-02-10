@@ -1,7 +1,6 @@
 import random
 from collections import defaultdict
 
-BACK = 0
 
 class Game(object):
     def __init__(
@@ -17,16 +16,6 @@ class Game(object):
         # with how many balls each other player has)
         self.order_out = []
         self.players_that_were_out = []
-        for player in self.players:
-            player.set_starting_balls(self.ball_group_size)
-
-    @property
-    def number_of_players(self):
-        return len(self.players)
-
-    @property
-    def ball_group_size(self):
-        return self.number_of_balls / self.number_of_players
 
     @property
     def current_player(self):
@@ -47,13 +36,16 @@ class Game(object):
     def take_next_shot(self):
         # check if a player made a ball
         if random.uniform(0, 1) < self.current_player.chance_to_make_a_ball:
-            loser = self.current_player.pick_ball_to_pocket(self.current_live_opponents)
+            loser = self.current_player.pick_ball_to_pocket(
+                self.current_live_opponents)
             loser.lose_ball()
             if not loser.balls_on_table:
+
                 scoresheet = {
                     player.name: player.balls_on_table
                     for player in self.players
                 }
+                # import ipdb; ipdb.set_trace()
                 self.players_that_were_out.append(loser.name)
                 self.order_out.append(scoresheet)
         else:
@@ -66,6 +58,7 @@ class Game(object):
                 for player in self.players if player != self.current_player
             ]
             if self.order_out:
+
                 self.order_out = []
 
     def go_to_next_player(self):
@@ -83,26 +76,29 @@ class Game(object):
         return player_with_balls_on_table
 
     def play_game(self):
-        while not self.check_for_winner():
-            self.take_next_shot()
+        self.take_next_shot()
         winner = self.check_for_winner()
-        winner_was_out = winner.name in self.players_that_were_out
-        # import ipdb; ipdb.set_trace()
-
-        return winner, self.order_out, winner_was_out
+        if winner:
+            winner_was_out = winner.name in self.players_that_were_out
+            return winner, self.order_out, winner_was_out
+        return self.play_game()
 
 
 class Player(object):
-    def __init__(self, name, chance_to_make_a_ball, chance_to_scratch):
+    def __init__(
+        self, name, chance_to_make_a_ball, chance_to_scratch,
+        max_balls=5, starting_balls=5
+    ):
         self.name = name
-        self.balls_on_table = 0
-        self.max_balls = 0
+        self.balls_on_table = starting_balls
+        self.max_balls = max_balls
+        self.starting_balls = starting_balls
         self.chance_to_make_a_ball = chance_to_make_a_ball
         self.chance_to_scratch = chance_to_scratch
         self.was_out = False
 
     def __repr__(self):
-        return "< Player: %s >" % self.name
+        return "< Player: %s balls: %s>" % (self.name, self.balls_on_table)
 
     def pick_ball_to_pocket(self, current_players):
         return random.choice([
@@ -135,23 +131,6 @@ class PlayerEliot(Player):
 
 
 def run_test():
-    test_players = [
-        Player(
-            name="neutral",
-            chance_to_make_a_ball=.33,
-            chance_to_scratch=.05
-        ),
-        Player(
-            name="eliot",
-            chance_to_make_a_ball=.33,
-            chance_to_scratch=.05
-        ),
-        PlayerEliot(
-            name="zak",
-            chance_to_make_a_ball=.33,
-            chance_to_scratch=.05
-        ),
-    ]
 
     stats = {
         "winner": defaultdict(int),
@@ -162,6 +141,26 @@ def run_test():
     rank_at_first_out_stats = stats["winner_rank_at_first_out"]
 
     for _ in xrange(10000):
+        test_players = [
+            Player(
+                name="neutral",
+                chance_to_make_a_ball=.33,
+                chance_to_scratch=.05,
+                starting_balls=5
+            ),
+            PlayerZak(
+                name="eliot",
+                chance_to_make_a_ball=.33,
+                chance_to_scratch=.05,
+                starting_balls=1
+            ),
+            Player(
+                name="zak",
+                chance_to_make_a_ball=.33,
+                chance_to_scratch=.05,
+                starting_balls=1
+            ),
+        ]
         game = Game(test_players)
         winner, order_out, winner_was_out = game.play_game()
         stats["winner"][winner.name] += 1
